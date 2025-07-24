@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>AI Camera with BG Remove</title>
+<style>
+body{margin:0;background:#000;color:#fff;font-family:sans-serif;text-align:center;}
+h2{margin:10px 0;}
+video,canvas{border-radius:12px;max-width:95%;margin:10px auto;display:block;}
+button{padding:10px 15px;font-size:16px;margin:5px;border:none;border-radius:8px;cursor:pointer;background:#0af;color:#000;}
+</style>
+</head>
+<body>
+<h2>🤖 AI Camera – Background Remove (TensorFlow.js)</h2>
+<video id="video" autoplay playsinline></video>
+<canvas id="output"></canvas>
+<div>
+  <button onclick="start()">📷 Start Camera</button>
+  <button onclick="download()">📥 Download</button>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.21.0"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/body-pix@2.2.0"></script>
+<script>
+let net,video=document.getElementById('video'),canvas=document.getElementById('output'),ctx=canvas.getContext('2d');
+async function loadModel(){
+  net = await bodyPix.load({architecture:'MobileNetV1',outputStride:16,multiplier:0.75,quantBytes:2});
+  console.log('✅ Model loaded');
+}
+async function start(){
+  await loadModel();
+  navigator.mediaDevices.getUserMedia({video:true}).then(stream=>{
+    video.srcObject=stream;
+    video.onloadedmetadata=()=>{video.play();drawFrame();}
+  });
+}
+async function drawFrame(){
+  canvas.width=video.videoWidth;
+  canvas.height=video.videoHeight;
+  const segmentation = await net.segmentPerson(video,{internalResolution:'medium',segmentationThreshold:0.7});
+  const mask = bodyPix.toMask(segmentation);
+  // Draw background as blurred
+  ctx.drawImage(video,0,0,canvas.width,canvas.height);
+  ctx.globalCompositeOperation='destination-in';
+  ctx.putImageData(mask,0,0);
+  ctx.globalCompositeOperation='destination-over';
+  // Draw blurred background
+  ctx.filter='blur(15px)';
+  ctx.drawImage(video,0,0,canvas.width,canvas.height);
+  ctx.filter='none';
+  requestAnimationFrame(drawFrame);
+}
+function download(){
+  const a=document.createElement('a');
+  a.href=canvas.toDataURL('image/png');
+  a.download='ai-captured.png';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+</script>
+</body>
+</html>
