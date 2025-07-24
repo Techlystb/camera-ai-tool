@@ -5,7 +5,7 @@ const ctx = canvas.getContext('2d');
 const startBtn = document.getElementById('startBtn');
 const downloadBtn = document.getElementById('downloadBtn');
 
-// ✅ মডেল লোড করা
+// ✅ BodyPix মডেল লোড
 async function loadModel() {
   net = await bodyPix.load({
     architecture: 'MobileNetV1',
@@ -31,27 +31,28 @@ async function startCamera() {
   }
 }
 
-// ✅ রিয়েল টাইম ফ্রেম প্রক্রিয়া
+// ✅ প্রতিটি ফ্রেম AI দিয়ে প্রসেস করা
 async function drawFrame() {
   canvas.width = video.videoWidth;
   canvas.height = video.videoHeight;
 
-  // AI দিয়ে segmentation
+  // segmentation চালানো
   const segmentation = await net.segmentPerson(video, {
     internalResolution: 'medium',
     segmentationThreshold: 0.7
   });
 
+  // mask তৈরি
   const mask = bodyPix.toMask(segmentation);
 
-  // মূল ভিডিও ফ্রেম আঁকা
+  // মানুষের অংশ আঁকা
   ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-  // মানুষের অংশ রেখে বাকি মুছে ফেলা
+  // মানুষের অংশ ছাড়া বাকি transparent
   ctx.globalCompositeOperation = 'destination-in';
   ctx.putImageData(mask, 0, 0);
 
-  // ব্যাকগ্রাউন্ড ব্লার করার জন্য destination-over ব্যবহার
+  // পেছনের background blur
   ctx.globalCompositeOperation = 'destination-over';
   ctx.filter = 'blur(15px)';
   ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
@@ -60,7 +61,7 @@ async function drawFrame() {
   requestAnimationFrame(drawFrame);
 }
 
-// ✅ ডাউনলোড
+// ✅ ডাউনলোড ফাংশন
 function downloadImage() {
   const link = document.createElement('a');
   link.href = canvas.toDataURL('image/png');
